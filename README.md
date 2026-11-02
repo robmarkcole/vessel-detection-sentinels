@@ -237,10 +237,11 @@ To get started in your own environment:
 3. Install the python packages required for downloading the data via pip:
 
    ```bash
-   pip install -r download_requirements.txt
+   pip install -r requirements.txt
    ```
 
-4. Create a [Copernicus Hub](https://scihub.copernicus.eu/dhus/#/home) account.
+4. Create a [Copernicus Data Space Ecosystem](https://dataspace.copernicus.eu/) account.
+   The retired Copernicus Scientific Data Hub (SciHub) API and its credentials are no longer supported.
 
 5. Export your user credentials and run the download script.
 
@@ -254,6 +255,15 @@ To get started in your own environment:
 
    Here the arg to `--save_dir` specifies the relative path to a directory in which all downloaded
    imagery will be stored, and `--db_path` specifies the relative path to the sqlite3 metadata file distributed with this repo.
+
+   Downloads use the [Data Space OData API](https://documentation.dataspace.copernicus.eu/APIs/OData.html)
+   with automatically renewed access tokens. Products are looked up by their `.SAFE` names;
+   the UUIDs in the metadata database remain unchanged. Completed archives in `image_cache`
+   and already preprocessed images are reused without requiring credentials. Interrupted
+   downloads are retried and temporary files are removed on failure. Missing or offline
+   products stop the script with an error identifying the affected product.
+
+   Credentials must be exported into the environment; `.env` files are not loaded automatically.
 
 You should see all Sentinel-1 images referenced in our annotated metadata begin downloading to your specified `save_dir`. The logs will indicate the status of the downloading procedure. When completed, you should have three new directories in your `--save_dir`: _preprocess_, _images_, and _image_cache_. _preprocess_ contains preprocessed (i.e. warped and cropped) copies of the raw Sentinel-1 imagery to which our metadata points. It is all that is strictly necessary for training. _image_cache_ contains the raw Sentinel-1 imagery product archives.
 
@@ -276,7 +286,7 @@ To use the docker image:
     docker build . -f Dockerfile -t vessel-detection-sentinels
     ```
 
-2.  Create a [Copernicus Hub](https://scihub.copernicus.eu/dhus/#/home) account, and export your user credentials:
+2.  Create a [Copernicus Data Space Ecosystem](https://dataspace.copernicus.eu/) account, and export your user credentials:
 
     ```bash
     export COPERNICUS_USERNAME=your-username

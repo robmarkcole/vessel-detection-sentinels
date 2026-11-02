@@ -4,24 +4,18 @@ import os
 import os.path
 import shutil
 import subprocess
-
-from sentinelsat import SentinelAPI
+from concurrent.futures import ThreadPoolExecutor
 
 from src.data.preprocess import preprocess
 from src.data.warp import get_image_info, warp
+from src.utils.download.copernicus import CopernicusDataSpace
 from src.utils.parallel import starmap
 
 logger = logging.getLogger("downloader")
 
 
 def retrieve(images, tmp_dir, download_dir, workers=0):
-    """Retrieve images from ESA API."""
-    api = SentinelAPI(
-        os.environ.get("COPERNICUS_USERNAME"),
-        os.environ.get("COPERNICUS_PASSWORD"),
-        "https://scihub.copernicus.eu/dhus",
-        timeout=60,
-    )
+    """Retrieve images from Copernicus Data Space, retaining database UUIDs."""
 
     # Filter for those images which still need to be preprocessed.
     preprocess_dir = os.path.join(download_dir, "preprocess")
@@ -42,13 +36,17 @@ def retrieve(images, tmp_dir, download_dir, workers=0):
             )
         )
     ]
-    needed_product_ids = [list(api.query(filename=fn))[0] for fn in needed_filenames]
-    api.download_all(
-        needed_product_ids,
-        directory_path=os.path.join(download_dir, "image_cache"),
-        n_concurrent_dl=4,
-        max_attempts=4,
-    )
+    if needed_filenames:
+        api = CopernicusDataSpace()
+        cache_dir = os.path.join(download_dir, "image_cache")
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            # Resolve all futures so download failures stop preprocessing.
+            futures = [
+                executor.submit(api.download, name, cache_dir)
+                for name in dict.fromkeys(needed_filenames)
+            ]
+            for future in futures:
+                future.result()
 
     # Pass image metadata to be inflated and preprocessed
     image_paths = {
